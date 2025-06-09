@@ -99,21 +99,15 @@ def assign_fragments_to_columns(coms, column_anchors, box, verbose=False):
     return assigned_columns, r
 
 
-def detect_column_hops(directory, anchors, home_assignments, r, box, prefix="F7_ramp."):
+def detect_column_hops(filepaths, anchors, home_assignments, r, box):
     hop_events = []
     box_xy = box[:2]
     cutoff = 0.45 * r
 
-    files = sorted(
-        f for f in os.listdir(directory)
-        if re.match(rf"^{re.escape(prefix)}\d+$", f)
-    )
-
     hopped_fragments = set()
-    bar = tqdm.tqdm(files, desc="Analyzing trajectory frames")
+    bar = tqdm.tqdm(filepaths, desc="Analyzing trajectory frames")
 
-    for frame_num, fname in enumerate(bar):
-        filepath = os.path.join(directory, fname)
+    for frame_num, filepath in enumerate(bar):
         u = mda.Universe(filepath, format="TXYZ")
         fragments = list(u.atoms.fragments)
         coms = np.array([frag.center_of_mass() for frag in fragments])
@@ -138,7 +132,7 @@ def detect_column_hops(directory, anchors, home_assignments, r, box, prefix="F7_
                         "to_column": j,
                         "distance_to_new": round(d_other, 3),
                         "distance_to_home": round(d_home, 3),
-                        "file": fname
+                        "file": os.path.basename(filepath)  # store filename for compatibility
                     })
                     hopped_fragments.add(i)
                     break
@@ -147,17 +141,12 @@ def detect_column_hops(directory, anchors, home_assignments, r, box, prefix="F7_
 
     return hop_events
 
-def collect_coms_over_time(directory, prefix="F7_ramp."):
-    files = sorted(
-        f for f in os.listdir(directory)
-        if re.match(rf"^{re.escape(prefix)}\d+$", f)
-    )
 
+def traj_com(filepaths):
     com_traj = []
-    bar = tqdm.tqdm(files, desc="Reading COMs")
+    bar = tqdm.tqdm(filepaths, desc="Reading COMs")
 
-    for fname in bar:
-        filepath = os.path.join(directory, fname)
+    for filepath in bar:
         u = mda.Universe(filepath, format="TXYZ")
         fragments = list(u.atoms.fragments)
         coms = [frag.center_of_mass() for frag in fragments]
@@ -165,8 +154,8 @@ def collect_coms_over_time(directory, prefix="F7_ramp."):
 
     return np.array(com_traj)
 
-def compute_orientational_order_parameter(u, vec_out=False, verbose=False):
-    frags = u.atoms.fragments
+
+def compute_orientational_order_parameter(frags, vec_out=False, verbose=False):
     axes = [frag.principal_axes()[0] for frag in frags]
     ni = np.array(axes).T
     A = sum(3 * np.outer(ni[:, i], ni[:, i]) - np.identity(3)
