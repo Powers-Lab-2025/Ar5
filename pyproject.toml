@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ar5"
+version = "0.1.0"
+description = "Tail Free DLC Analysis Using MDAnalysis"
+authors = [
+    { name="Alfredo Roman Jordan", email="alforest22@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.8"
+
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "tqdm",
+    "scikit-learn",
+    "MDAnalysis",
+]
+
+[project.urls]
+Homepage = "https://github.com/Powers-Lab-2025/Ar5"
