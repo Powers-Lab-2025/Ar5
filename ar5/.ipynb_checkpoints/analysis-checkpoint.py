@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import tqdm
 from sklearn.cluster import DBSCAN
 import MDAnalysis as mda
+from scipy.spatial import distance_matrix
 
 
 def guess_column_positions(coms, box, eps=2, min_samples=5, verbose=False, return_noise=False):
@@ -171,3 +172,92 @@ def compute_orientational_order_parameter(frags, vec_out=False, verbose=False):
     S = evals[idx]
     if verbose: print(f"{S:.4f}")
     return S
+
+
+def get_fragment_neighbors(coms, directors, box, i, r_min=7.0, r_max=15.0, z_cut=2.5):
+    """
+    Find neighbors of fragment i based on projected distances and PBCeeees.
+
+    Parameters:
+    - coms: np.ndarray (N, 3), CoMs of all fragments
+    - directors: np.ndarray (N, 3), directors of all fragments (should be normalized)
+    - box: np.ndarray (3,), box lengths (x, y, z)
+    - i: int, index of fragment of interest
+    - r_min: float, inner radius of neighbor annulus (default 7.0)
+    - r_max: float, outer radius of neighbor annulus (default 15.0)
+    - z_cut: float, max |parallel distance| (default 2.5)
+
+    Returns:
+    - neighbor_indices: list of indices of neighbors
+    - Rij_vectors: np.ndarray (N_neighbors, 3), unit vectors Rij projected into fragment i plane
+    """
+    N = coms.shape[0]
+    box = np.asarray(box)
+
+    dr = coms - coms[i]
+    dr = (dr + box/2) % box - box/2  # Apply PBCs
+
+    paradr = np.dot(dr, directors[i])
+    paradr_vec = np.outer(paradr, directors[i])
+
+    perpdr = dr - paradr_vec
+    perpdr_norm = np.linalg.norm(perpdr, axis=1)
+
+    neighbor_mask = (perpdr_norm > r_min) & (perpdr_norm <= r_max) & (np.abs(paradr) <= z_cut)
+
+    neighbor_mask[i] = False
+
+    neighbor_indices = np.where(neighbor_mask)[0]
+
+    Rij_vectors = perpdr[neighbor_indices]
+    Rij_norms = np.linalg.norm(Rij_vectors, axis=1, keepdims=True)
+    Rij_unit = Rij_vectors / Rij_norms
+
+    return neighbor_indices, Rij_unit
+
+
+def compute_hexatic_order_parameter(Rij_unit, k=6):
+    """
+    Compute the hexatic order parameter _k for one fragment.
+
+    Parameters:
+    - Rij_unit: np.ndarray (N_neighbors, 3), unit vectors in fragment plane
+    - k: int, symmetry order (default 6 for hexatic)
+
+    Returns:
+    - psi_k: complex number, the hexatic order parameter _k
+    - magnitude: float, |_k|
+    - angle: float, arg(_k) in radians
+    """
+    if Rij_unit.shape[0] == 0:
+        return 0.0 + 0.0j, 0.0, 0.0
+
+    theta_ij = np.arctan2(Rij_unit[:,1], Rij_unit[:,0])
+
+    exp_terms = np.exp(1j * k * theta_ij)
+    psi_k = np.mean(exp_terms)
+
+    magnitude = np.abs(psi_k)
+    angle = np.angle(psi_k)
+
+    return psi_k, magnitude, angle
+
+def compute_fragment_directors(u):
+    """
+    Compute directors for all fragments in a Universe.
+
+    Parameters:
+    - u
+
+    Returns:
+    - directors: np.ndarray (N_fragments, 3), normalized director vectors
+    """
+    frags = u.atoms.fragments
+    axes = [frag.principal_axes()[0] for frag in frags]
+    directors = np.array(axes)
+
+    norms = np.linalg.norm(directors, axis=1, keepdims=True)
+    directors_unit = directors / norms
+
+    return directors_unit
+

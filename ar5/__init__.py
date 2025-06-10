@@ -1,5 +1,5 @@
-from .analysis import guess_column_positions, assign_fragments_to_columns, detect_column_hops, collect_coms_over_time, compute_orientational_order_parameter
+from .analysis import traj_com, compute_orientational_order_parameter, detect_column_hops, assign_fragments_to_columns, guess_column_positions, get_fragment_neighbors, compute_hexatic_order_parameter, compute_fragment_directors
 from .plotting import plot_xy_trajectories, plot_single_fragment_trajectory_with_anchors
-from .simtree import analyze_simtree_dynamic_fixed, add_hopper_distances
-from .file_utils import parse_traj_manual, dyn_to_xyz, batch_convert_dyn_to_xyz, convert_dync_atom_labels, combine_xyz_frames
+from .simtree import analyze_simtree_dynamic_fixed
+from .file_utils import convert_dyn_to_xyz, convert_dync_atom_labels, combine_xyz_frames, find_xyz_files
 from .vmd_utils import generate_vmd_hopper_tcl
