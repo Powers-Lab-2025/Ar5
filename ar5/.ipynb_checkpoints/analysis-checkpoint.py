@@ -261,3 +261,32 @@ def compute_fragment_directors(u):
 
     return directors_unit
 
+
+def compute_real_hexatic_order(Rij_unit, k=6):
+    """
+    Real-valued hexatic OP: average cos(k * angle between neighbor vectors)
+
+    Parameters:
+    - Rij_unit: (N_neighbors, 3), unit vectors in fragment plane
+
+    Returns:
+    - real_psi_k: float
+    """
+    n = Rij_unit.shape[0]
+    if n < 2:
+        return 0.0
+
+    hex_run = 0.0
+    count = 0
+
+    for j in range(n):
+        for l in range(j+1, n):
+            dot = np.dot(Rij_unit[j], Rij_unit[l])
+            dot = np.clip(dot, -1.0, 1.0)
+            theta_jl = np.arccos(dot)
+            hex_run += np.cos(k * theta_jl)
+            count += 1
+
+    return hex_run / count if count > 0 else 0.0
+
+

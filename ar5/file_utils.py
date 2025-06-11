@@ -131,7 +131,7 @@ def convert_dync_atom_labels(directories):
             continue
 
         for file in os.listdir(dir_path):
-            if file.endswith("_dync.xyz"):
+            if file.startswith("F7_ramp"):#file.endswith("_dync.xyz"):
                 file_path = os.path.join(dir_path, file)
                 with open(file_path, "r") as f:
                     lines = f.readlines()
@@ -257,23 +257,35 @@ def find_xyz_files(directory, prefix, type="xyz"):
         - "simtree": returns a dict { (mol, temp): list of filepaths }
 
     Returns:
-    - If type != "simtree": list of filepaths (sorted)
+    - If type != "simtree": list of filepaths (sorted numerically)
     - If type == "simtree": dict { (mol, temp): list of filepaths }
     """
     if type == "xyz":
-        files = sorted(
-            f for f in os.listdir(directory)
-            if re.match(rf"^{re.escape(prefix)}_\d+\.xyz$", f)
-        )
-        filepaths = [os.path.join(directory, f) for f in files]
+        # Pattern: F7_ramp_123.xyz
+        pattern = re.compile(rf"^{re.escape(prefix)}_(\d+)\.xyz$")
+        matched_files = []
+        for f in os.listdir(directory):
+            m = pattern.match(f)
+            if m:
+                number = int(m.group(1))
+                matched_files.append( (number, f) )
+        # Sort numerically
+        matched_files.sort(key=lambda x: x[0])
+        filepaths = [os.path.join(directory, f) for _, f in matched_files]
         return filepaths
 
     elif type == "numbered":
-        files = sorted(
-            f for f in os.listdir(directory)
-            if re.match(rf"^{re.escape(prefix)}\.\d+$", f)
-        )
-        filepaths = [os.path.join(directory, f) for f in files]
+        # Pattern: F7_ramp.001
+        pattern = re.compile(rf"^{re.escape(prefix)}\.(\d+)$")
+        matched_files = []
+        for f in os.listdir(directory):
+            m = pattern.match(f)
+            if m:
+                number = int(m.group(1))
+                matched_files.append( (number, f) )
+        # Sort numerically
+        matched_files.sort(key=lambda x: x[0])
+        filepaths = [os.path.join(directory, f) for _, f in matched_files]
         return filepaths
 
     elif type == "simtree":
@@ -289,10 +301,20 @@ def find_xyz_files(directory, prefix, type="xyz"):
                 if not os.path.isdir(data_path):
                     continue
 
-                iter_dirs = sorted([i for i in os.listdir(data_path) if os.path.isdir(os.path.join(data_path, i))])
+                iter_dirs = []
+                for i in os.listdir(data_path):
+                    if os.path.isdir(os.path.join(data_path, i)):
+                        try:
+                            iter_num = int(i)
+                            iter_dirs.append((iter_num, i))
+                        except ValueError:
+                            continue
+
+                # Sort iter dirs numerically
+                iter_dirs.sort(key=lambda x: x[0])
 
                 filepaths = []
-                for iter_dir in iter_dirs:
+                for _, iter_dir in iter_dirs:
                     xyz_path = os.path.join(data_path, iter_dir, f"{mol}_ramp_dync.xyz")
                     if os.path.exists(xyz_path):
                         filepaths.append(xyz_path)
@@ -303,3 +325,4 @@ def find_xyz_files(directory, prefix, type="xyz"):
 
     else:
         raise ValueError(f"Unsupported type: {type}. Must be 'xyz', 'numbered', or 'simtree'.")
+
